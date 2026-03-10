@@ -1,0 +1,10 @@
+fastapi==0.111.0
+uvicorn==0.30.1
+httpx==0.27.0
+dnspython==2.6.1
+cryptography==42.0.8
+pyOpenSSL==24.1.0
+requests==2.32.3
+beautifulsoup4==4.12.3
+python-whois==0.9.4
+packaging==24.1
