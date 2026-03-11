@@ -34,7 +34,7 @@ const StatusIcon = ({ status }: { status: string }) => {
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [scans, setScans] = useState<Scan[]>([])
-  const [history, setHistory] = useState<Array<{ created_at: string; security_score: number }>>([])
+  const [history, setHistory] = useState<Array<{ created_at: string; security_score: number; domain?: string }>>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
