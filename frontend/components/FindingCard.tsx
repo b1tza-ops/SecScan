@@ -10,6 +10,8 @@ interface Finding {
   severity: string
   fix_recommendation: string
   fix_example?: string
+  owasp_category?: string
+  cve?: string
 }
 
 const SeverityIcon = ({ severity }: { severity: string }) => {
@@ -33,6 +35,9 @@ export function FindingCard({ finding }: { finding: Finding }) {
         <span className={`text-xs px-2 py-1 rounded-full border capitalize ${severityColor(finding.severity)}`}>
           {finding.severity}
         </span>
+        {finding.owasp_category && (
+          <span className="hidden lg:inline text-xs text-gray-600 truncate max-w-[220px]">{finding.owasp_category}</span>
+        )}
         <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -59,6 +64,25 @@ export function FindingCard({ finding }: { finding: Finding }) {
                   <pre className="text-xs bg-[#0a0a0a] rounded-lg p-3 text-green-400 overflow-x-auto border border-[#222]">
                     {finding.fix_example}
                   </pre>
+                </div>
+              )}
+              {(finding.owasp_category || finding.cve) && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {finding.owasp_category && (
+                    <span className="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-1 rounded-full">
+                      {finding.owasp_category}
+                    </span>
+                  )}
+                  {finding.cve && (
+                    <a
+                      href={`https://nvd.nist.gov/vuln/detail/${finding.cve}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-1 rounded-full hover:bg-red-500/20 transition-colors"
+                    >
+                      {finding.cve} ↗
+                    </a>
+                  )}
                 </div>
               )}
             </div>

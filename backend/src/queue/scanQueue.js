@@ -43,9 +43,46 @@ export function startScanWorker() {
       }
 
       await pool.query(
-        "UPDATE scans SET status='completed', security_score=$1, critical_count=$2, warning_count=$3, info_count=$4, completed_at=NOW() WHERE id=$5",
-        [result.security_score, result.critical_count, result.warning_count, result.info_count, scanId]
+        "UPDATE scans SET status='completed', security_score=$1, critical_count=$2, warning_count=$3, info_count=$4, owasp_summary=$5, completed_at=NOW() WHERE id=$6",
+        [result.security_score, result.critical_count, result.warning_count, result.info_count, JSON.stringify(result.owasp_summary || {}), scanId]
       );
+
+      // Update domain tracking
+      await pool.query(
+        'UPDATE domains SET last_scanned_at=NOW(), last_score=$1 WHERE domain=$2',
+        [result.security_score, domain]
+      ).catch(() => {});
+
+      // Send webhook notification for monitored domains
+      try {
+        const { rows: domainRows } = await pool.query(
+          'SELECT webhook_url FROM domains WHERE domain=$1 AND monitoring_enabled=true AND webhook_url IS NOT NULL',
+          [domain]
+        );
+        if (domainRows.length && domainRows[0].webhook_url) {
+          const webhookUrl = domainRows[0].webhook_url;
+          const scoreEmoji = result.security_score >= 80 ? '🟢' : result.security_score >= 60 ? '🟡' : '🔴';
+          const payload = {
+            text: `${scoreEmoji} SecurityScan completed for *${domain}*`,
+            attachments: [{
+              color: result.security_score >= 80 ? 'good' : result.security_score >= 60 ? 'warning' : 'danger',
+              fields: [
+                { title: 'Security Score', value: `${result.security_score}/100`, short: true },
+                { title: 'Critical & High', value: String(result.critical_count), short: true },
+                { title: 'Warnings', value: String(result.warning_count), short: true },
+                { title: 'View Report', value: `${process.env.FRONTEND_URL}/scan/${scanId}`, short: false },
+              ],
+            }],
+          };
+          await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          }).catch(() => {});
+        }
+      } catch {
+        // Don't fail the scan if webhook delivery fails
+      }
     } catch (err) {
       await pool.query("UPDATE scans SET status='failed', completed_at=NOW() WHERE id=$1", [scanId]);
       throw err;

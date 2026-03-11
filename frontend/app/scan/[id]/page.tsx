@@ -5,8 +5,10 @@ import { motion } from 'framer-motion'
 import { ScoreGauge } from '@/components/ScoreGauge'
 import { FindingCard } from '@/components/FindingCard'
 import { api } from '@/lib/api'
-import { Shield, AlertTriangle, Info, Download, RefreshCw, CheckCircle } from 'lucide-react'
+import { Shield, AlertTriangle, Info, Download, RefreshCw, CheckCircle, Share2 } from 'lucide-react'
 import Link from 'next/link'
+import { BadgeEmbed } from '@/components/BadgeEmbed'
+import { OWASPSummary } from '@/components/OWASPSummary'
 
 interface Finding {
   title: string
@@ -31,6 +33,7 @@ interface ScanData {
   status: string
   security_score: number
   completed_at: string
+  owasp_summary?: Record<string, number>
 }
 
 const MODULE_LABELS: Record<string, string> = {
@@ -43,6 +46,9 @@ const MODULE_LABELS: Record<string, string> = {
   cookies: 'Cookie Security',
   robots: 'robots.txt',
   https_redirect: 'HTTPS Redirect',
+  exposed_files: 'Exposed Files',
+  subdomain_takeover: 'Subdomain Takeover',
+  security_txt: 'security.txt',
 }
 
 export default function ScanPage() {
@@ -183,17 +189,32 @@ export default function ScanPage() {
           </div>
         )}
 
+        {/* OWASP Summary */}
+        {!isRunning && scan.status === 'completed' && scan.owasp_summary && Object.keys(scan.owasp_summary).length > 0 && (
+          <OWASPSummary owaspSummary={scan.owasp_summary} />
+        )}
+
         {/* Findings */}
         {!isRunning && vulnerabilities.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h2 className="text-lg font-semibold text-white">All Findings</h2>
-              <Link
-                href="/auth/register"
-                className="text-sm flex items-center gap-2 bg-[#1a1a1a] border border-[#333] text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <Download className="w-4 h-4" /> Export PDF (Pro)
-              </Link>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigator.clipboard.writeText(window.location.href)}
+                  className="text-sm flex items-center gap-2 bg-[#1a1a1a] border border-[#333] text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Share2 className="w-4 h-4" /> Share
+                </button>
+                <a
+                  href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/pdf/${scan.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm flex items-center gap-2 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-600/30 px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Download className="w-4 h-4" /> PDF Report
+                </a>
+              </div>
             </div>
             <div className="space-y-3">
               {vulnerabilities.map((v) => (
@@ -211,7 +232,14 @@ export default function ScanPage() {
           </div>
         )}
 
-        <div className="mt-12 text-center text-xs text-gray-600">
+        {/* Badge Embed */}
+        {!isRunning && scan.status === 'completed' && (
+          <div className="mt-8">
+            <BadgeEmbed domain={scan.domain} score={scan.security_score} />
+          </div>
+        )}
+
+        <div className="mt-8 text-center text-xs text-gray-600">
           <Link href="/auth/register" className="text-indigo-400 hover:underline">Create a free account</Link> to save reports, set up monitoring, and export PDF reports.
         </div>
       </div>

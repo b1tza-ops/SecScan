@@ -59,7 +59,8 @@ async def scan_ports_safe(domain: str) -> dict:
                     "description": desc,
                     "severity": severity,
                     "fix_recommendation": fix,
-                    "fix_example": f"ufw deny {port}  # or block in your firewall"
+                    "fix_example": f"ufw deny {port}  # or block in your firewall",
+                    "owasp_category": "A05:2021 Security Misconfiguration",
                 })
 
     return {

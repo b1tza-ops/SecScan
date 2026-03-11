@@ -8,6 +8,8 @@ import { scanRouter } from './routes/scan.js';
 import { userRouter } from './routes/user.js';
 import { subscriptionRouter } from './routes/subscription.js';
 import { adminRouter } from './routes/admin.js';
+import { badgeRouter } from './routes/badge.js';
+import { pdfRouter } from './routes/pdf.js';
 import { globalLimiter } from './middleware/rateLimit.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initDB } from './models/db.js';
@@ -33,6 +35,8 @@ app.use('/api/scan', scanRouter);
 app.use('/api/user', userRouter);
 app.use('/api/subscription', subscriptionRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/badge', badgeRouter);
+app.use('/api/pdf', pdfRouter);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 

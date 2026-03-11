@@ -56,6 +56,23 @@ userRouter.post('/domains/:domainId/monitor', async (req, res, next) => {
   }
 });
 
+userRouter.post('/domains/:domainId/webhook', async (req, res, next) => {
+  try {
+    if (req.user.plan === 'free') {
+      return res.status(403).json({ error: 'Webhook alerts require Pro or Agency plan.' });
+    }
+    const { webhook_url } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE domains SET webhook_url=$1 WHERE id=$2 AND user_id=$3 RETURNING *',
+      [webhook_url || null, req.params.domainId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Domain not found' });
+    res.json({ domain: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
 userRouter.post('/regenerate-api-key', async (req, res, next) => {
   try {
     const { rows } = await pool.query(

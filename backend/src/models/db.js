@@ -91,11 +91,26 @@ export async function initDB() {
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS anon_scan_tracking (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        ip_address TEXT NOT NULL,
+        scan_date DATE DEFAULT CURRENT_DATE,
+        scan_count INTEGER DEFAULT 1,
+        UNIQUE(ip_address, scan_date)
+      );
+
       CREATE INDEX IF NOT EXISTS idx_scans_user_id ON scans(user_id);
       CREATE INDEX IF NOT EXISTS idx_scans_domain ON scans(domain);
       CREATE INDEX IF NOT EXISTS idx_vulnerabilities_scan_id ON vulnerabilities(scan_id);
       CREATE INDEX IF NOT EXISTS idx_scan_results_scan_id ON scan_results(scan_id);
+      CREATE INDEX IF NOT EXISTS idx_anon_scan_tracking ON anon_scan_tracking(ip_address, scan_date);
     `);
+    // Add new columns if they don't exist yet (idempotent migrations)
+    await client.query(`ALTER TABLE scans ADD COLUMN IF NOT EXISTS ip_address TEXT;`);
+    await client.query(`ALTER TABLE scans ADD COLUMN IF NOT EXISTS owasp_summary JSONB DEFAULT '{}';`);
+    await client.query(`ALTER TABLE domains ADD COLUMN IF NOT EXISTS webhook_url TEXT;`);
+    await client.query(`ALTER TABLE domains ADD COLUMN IF NOT EXISTS last_scanned_at TIMESTAMPTZ;`);
+    await client.query(`ALTER TABLE domains ADD COLUMN IF NOT EXISTS last_score INTEGER;`);
     console.log('Database schema initialized');
   } finally {
     client.release();

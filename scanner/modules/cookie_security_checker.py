@@ -29,7 +29,8 @@ async def check_cookies(domain: str) -> dict:
                         "description": "Cookie is accessible via JavaScript. XSS attacks can steal session tokens.",
                         "severity": "high",
                         "fix_recommendation": "Set HttpOnly flag on all session cookies.",
-                        "fix_example": "Set-Cookie: session=abc; HttpOnly; Secure; SameSite=Strict"
+                        "fix_example": "Set-Cookie: session=abc; HttpOnly; Secure; SameSite=Strict",
+                        "owasp_category": "A05:2021 Security Misconfiguration",
                     })
                 if "secure" not in header_lower:
                     findings.append({
@@ -37,7 +38,8 @@ async def check_cookies(domain: str) -> dict:
                         "description": "Cookie may be transmitted over HTTP, exposing it to interception.",
                         "severity": "medium",
                         "fix_recommendation": "Set the Secure flag on all cookies.",
-                        "fix_example": "Set-Cookie: session=abc; Secure; HttpOnly"
+                        "fix_example": "Set-Cookie: session=abc; Secure; HttpOnly",
+                        "owasp_category": "A05:2021 Security Misconfiguration",
                     })
                 if "samesite" not in header_lower:
                     findings.append({
@@ -45,7 +47,8 @@ async def check_cookies(domain: str) -> dict:
                         "description": "Cookie is vulnerable to CSRF attacks.",
                         "severity": "medium",
                         "fix_recommendation": "Set SameSite=Strict or SameSite=Lax.",
-                        "fix_example": "Set-Cookie: session=abc; SameSite=Strict; Secure; HttpOnly"
+                        "fix_example": "Set-Cookie: session=abc; SameSite=Strict; Secure; HttpOnly",
+                        "owasp_category": "A05:2021 Security Misconfiguration",
                     })
 
     except httpx.RequestError as e:

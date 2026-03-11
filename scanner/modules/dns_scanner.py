@@ -1,6 +1,8 @@
 import dns.resolver
 import dns.exception
 
+OWASP_CATEGORY = "A07:2021 Identification and Authentication Failures"
+
 def scan_dns(domain: str) -> dict:
     findings = []
     raw_data = {}
@@ -17,7 +19,8 @@ def scan_dns(domain: str) -> dict:
                 "description": "No SPF record found. Attackers can send emails impersonating your domain.",
                 "severity": "high",
                 "fix_recommendation": "Add an SPF TXT record to your DNS.",
-                "fix_example": 'TXT @ "v=spf1 include:_spf.google.com ~all"'
+                "fix_example": 'TXT @ "v=spf1 include:_spf.google.com ~all"',
+                "owasp_category": OWASP_CATEGORY,
             })
         else:
             raw_data["spf"] = spf[0]
@@ -27,7 +30,8 @@ def scan_dns(domain: str) -> dict:
                     "description": "SPF record doesn't specify a reject/softfail policy.",
                     "severity": "medium",
                     "fix_recommendation": "Use -all or ~all at the end of your SPF record.",
-                    "fix_example": 'TXT @ "v=spf1 include:_spf.yourmailprovider.com -all"'
+                    "fix_example": 'TXT @ "v=spf1 include:_spf.yourmailprovider.com -all"',
+                    "owasp_category": OWASP_CATEGORY,
                 })
     except dns.exception.DNSException:
         findings.append({
@@ -35,7 +39,8 @@ def scan_dns(domain: str) -> dict:
             "description": "Could not query TXT records.",
             "severity": "info",
             "fix_recommendation": "Ensure DNS is properly configured.",
-            "fix_example": None
+            "fix_example": None,
+            "owasp_category": OWASP_CATEGORY,
         })
 
     # DMARC
@@ -50,7 +55,8 @@ def scan_dns(domain: str) -> dict:
                 "description": "No DMARC record found. Email spoofing attacks are possible.",
                 "severity": "high",
                 "fix_recommendation": "Add a DMARC TXT record at _dmarc.yourdomain.com.",
-                "fix_example": 'TXT _dmarc "v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com"'
+                "fix_example": 'TXT _dmarc "v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com"',
+                "owasp_category": OWASP_CATEGORY,
             })
         else:
             if "p=none" in dmarc[0]:
@@ -59,7 +65,8 @@ def scan_dns(domain: str) -> dict:
                     "description": "DMARC is monitoring only (p=none). Spoofed emails are not blocked.",
                     "severity": "medium",
                     "fix_recommendation": "Upgrade DMARC policy to p=quarantine or p=reject.",
-                    "fix_example": 'TXT _dmarc "v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com"'
+                    "fix_example": 'TXT _dmarc "v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com"',
+                    "owasp_category": OWASP_CATEGORY,
                 })
     except dns.exception.NXDOMAIN:
         findings.append({
@@ -67,12 +74,13 @@ def scan_dns(domain: str) -> dict:
             "description": "No DMARC record found at _dmarc subdomain.",
             "severity": "high",
             "fix_recommendation": "Add a DMARC TXT record.",
-            "fix_example": 'TXT _dmarc "v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com"'
+            "fix_example": 'TXT _dmarc "v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com"',
+            "owasp_category": OWASP_CATEGORY,
         })
     except dns.exception.DNSException:
         pass
 
-    # DNSSEC (check if DS record exists in parent)
+    # DNSSEC
     try:
         dns.resolver.resolve(domain, 'DNSKEY', lifetime=10)
         raw_data["dnssec"] = True
@@ -83,7 +91,8 @@ def scan_dns(domain: str) -> dict:
             "description": "DNSSEC is not configured. DNS responses could be spoofed (DNS cache poisoning).",
             "severity": "medium",
             "fix_recommendation": "Enable DNSSEC with your domain registrar.",
-            "fix_example": "Enable DNSSEC in your domain registrar's control panel."
+            "fix_example": "Enable DNSSEC in your domain registrar's control panel.",
+            "owasp_category": OWASP_CATEGORY,
         })
 
     return {

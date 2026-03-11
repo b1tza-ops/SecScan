@@ -40,4 +40,13 @@ export const api = {
   getAdminStats: () => apiFetch('/admin/stats'),
   getAdminUsers: () => apiFetch('/admin/users'),
   getAdminScans: () => apiFetch('/admin/scans'),
+
+  // History & badges
+  getDomainHistory: (domain: string) => apiFetch(`/scan/history/${domain}`),
+  getBadgeUrl: (domain: string) => `${API_URL}/api/badge/${domain}`,
+  getPdfUrl: (scanId: string) => `${API_URL}/api/pdf/${scanId}`,
+
+  // Webhooks
+  setDomainWebhook: (domainId: string, webhookUrl: string | null) =>
+    apiFetch(`/user/domains/${domainId}/webhook`, { method: 'POST', body: JSON.stringify({ webhook_url: webhookUrl }) }),
 }

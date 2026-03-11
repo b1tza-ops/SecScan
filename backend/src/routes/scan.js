@@ -28,6 +28,21 @@ scanRouter.post('/', scanLimiter, optionalAuth, [
       return res.status(400).json({ error: 'Invalid domain format' });
     }
 
+    // Rate limit anonymous scans by IP: 5/day
+    if (!req.user) {
+      const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+      const { rows: anonRows } = await pool.query(
+        `INSERT INTO anon_scan_tracking (ip_address, scan_date, scan_count)
+         VALUES ($1, CURRENT_DATE, 1)
+         ON CONFLICT (ip_address, scan_date) DO UPDATE SET scan_count = anon_scan_tracking.scan_count + 1
+         RETURNING scan_count`,
+        [clientIp]
+      );
+      if (parseInt(anonRows[0].scan_count) > 5) {
+        return res.status(429).json({ error: 'Anonymous scan limit reached (5/day). Create a free account for more scans.' });
+      }
+    }
+
     // Enforce plan scan limits for logged-in users
     if (req.user) {
       const plan = req.user.plan;
@@ -43,9 +58,10 @@ scanRouter.post('/', scanLimiter, optionalAuth, [
       }
     }
 
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
     const { rows } = await pool.query(
-      'INSERT INTO scans (user_id, domain) VALUES ($1,$2) RETURNING id, domain, status, created_at',
-      [req.user?.id || null, domain]
+      'INSERT INTO scans (user_id, domain, ip_address) VALUES ($1,$2,$3) RETURNING id, domain, status, created_at',
+      [req.user?.id || null, domain, clientIp]
     );
     const scan = rows[0];
 
@@ -73,6 +89,23 @@ scanRouter.get('/:id', [param('id').isUUID()], async (req, res, next) => {
     const { rows: vulns } = await pool.query('SELECT * FROM vulnerabilities WHERE scan_id=$1 ORDER BY severity', [scan.id]);
 
     res.json({ scan, modules, vulnerabilities: vulns });
+  } catch (err) {
+    next(err);
+  }
+});
+
+scanRouter.get('/history/:domain', async (req, res, next) => {
+  try {
+    const domain = req.params.domain.toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').trim();
+    const { rows } = await pool.query(
+      `SELECT id, security_score, critical_count, warning_count, info_count, created_at, completed_at
+       FROM scans
+       WHERE domain=$1 AND status='completed'
+       ORDER BY created_at DESC
+       LIMIT 30`,
+      [domain]
+    );
+    res.json({ domain, history: rows });
   } catch (err) {
     next(err);
   }

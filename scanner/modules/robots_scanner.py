@@ -41,7 +41,8 @@ async def scan_robots(domain: str) -> dict:
                         "description": f"robots.txt discloses sensitive paths: {', '.join(sensitive_exposed[:5])}. Attackers can use this to find targets.",
                         "severity": "medium",
                         "fix_recommendation": "Remove sensitive paths from robots.txt. Robots.txt is public — obscurity is not security.",
-                        "fix_example": "# Only disallow paths that are truly public-facing\nDisallow: /search?"
+                        "fix_example": "# Only disallow paths that are truly public-facing\nDisallow: /search?",
+                        "owasp_category": "A01:2021 Broken Access Control",
                     })
             else:
                 raw_data["robots_txt"] = None
@@ -50,7 +51,8 @@ async def scan_robots(domain: str) -> dict:
                     "description": "robots.txt is missing. While optional, it can help guide search engine crawlers.",
                     "severity": "info",
                     "fix_recommendation": "Create a robots.txt file.",
-                    "fix_example": "User-agent: *\nDisallow: /private/\nSitemap: https://yourdomain.com/sitemap.xml"
+                    "fix_example": "User-agent: *\nDisallow: /private/\nSitemap: https://yourdomain.com/sitemap.xml",
+                    "owasp_category": "A01:2021 Broken Access Control",
                 })
     except httpx.RequestError as e:
         raw_data["error"] = str(e)

@@ -6,6 +6,7 @@ import { Shield, Plus, Clock, CheckCircle, AlertTriangle, XCircle } from 'lucide
 import Link from 'next/link'
 import { scoreColor } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 interface Scan {
   id: string
@@ -33,6 +34,7 @@ const StatusIcon = ({ status }: { status: string }) => {
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [scans, setScans] = useState<Scan[]>([])
+  const [history, setHistory] = useState<Array<{ created_at: string; security_score: number }>>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
@@ -42,6 +44,13 @@ export default function DashboardPage() {
         const [userRes, scansRes] = await Promise.all([api.me(), api.getUserScans()])
         setUser(userRes.user)
         setScans(scansRes.scans)
+        const recentDomain = scansRes.scans?.find((s: Scan) => s.status === 'completed')?.domain
+        if (recentDomain) {
+          try {
+            const histRes = await api.getDomainHistory(recentDomain)
+            setHistory(histRes.history || [])
+          } catch {}
+        }
       } catch {
         router.push('/auth/login')
       } finally {
@@ -122,6 +131,38 @@ export default function DashboardPage() {
               </Link>
             ))}
           </motion.div>
+        )}
+
+        {/* Score History Chart */}
+        {history.length >= 2 && (
+          <div className="mt-8 bg-[#111] border border-[#222] rounded-2xl p-6">
+            <h2 className="text-base font-semibold text-white mb-1">Score History</h2>
+            <p className="text-xs text-gray-500 mb-4">{history[0]?.domain || 'Recent domain'} — last {history.length} scans</p>
+            <ResponsiveContainer width="100%" height={160}>
+              <LineChart data={[...history].reverse()}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
+                <XAxis
+                  dataKey="created_at"
+                  tick={{ fill: '#6b7280', fontSize: 10 }}
+                  tickFormatter={(v) => new Date(v).toLocaleDateString()}
+                />
+                <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 10 }} />
+                <Tooltip
+                  contentStyle={{ background: '#111', border: '1px solid #222', borderRadius: 8, color: '#fff', fontSize: 12 }}
+                  labelFormatter={(v) => new Date(v).toLocaleString()}
+                  formatter={(v: number) => [`${v}/100`, 'Score']}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="security_score"
+                  stroke="#6366f1"
+                  strokeWidth={2}
+                  dot={{ fill: '#6366f1', r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         )}
 
         {user?.plan === 'free' && (
