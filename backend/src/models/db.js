@@ -116,6 +116,11 @@ export async function initDB() {
       );
       CREATE INDEX IF NOT EXISTS idx_ai_usage_key ON ai_usage(usage_key, created_at);
 
+      CREATE TABLE IF NOT EXISTS stripe_events (
+        event_id TEXT PRIMARY KEY,
+        processed_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
       CREATE INDEX IF NOT EXISTS idx_scans_user_id ON scans(user_id);
       CREATE INDEX IF NOT EXISTS idx_scans_domain ON scans(domain);
       CREATE INDEX IF NOT EXISTS idx_scans_status ON scans(status);

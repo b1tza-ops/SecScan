@@ -16,7 +16,8 @@ export function Navbar() {
           <span className="font-semibold text-white">SecurityScan</span>
         </Link>
         <div className="flex items-center gap-6">
-          <Link href="/#pricing" className="text-sm text-gray-400 hover:text-white transition-colors">Pricing</Link>
+          <Link href="/leaderboard" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:block">Leaderboard</Link>
+          <Link href="/#pricing" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:block">Pricing</Link>
           <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors">Login</Link>
           <Link href="/auth/register" className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors">
             Get Started

@@ -50,13 +50,24 @@ export const api = {
   getBadgeUrl: (domain: string) => `${API_URL}/api/badge/${domain}`,
   getPdfUrl: (scanId: string) => `${API_URL}/api/pdf/${scanId}`,
 
-  // Webhooks
+  // Webhooks & monitoring
   setDomainWebhook: (domainId: string, webhookUrl: string | null) =>
     apiFetch(`/user/domains/${domainId}/webhook`, { method: 'POST', body: JSON.stringify({ webhook_url: webhookUrl }) }),
+  setDomainMonitoring: (domainId: string, enabled: boolean, interval: string) =>
+    apiFetch(`/user/domains/${domainId}/monitor`, { method: 'POST', body: JSON.stringify({ enabled, interval }) }),
+  updateNotifications: (email_alerts: boolean) =>
+    apiFetch('/user/notifications', { method: 'PATCH', body: JSON.stringify({ email_alerts }) }),
 
   // AI
   getAiFix: (finding: { title: string; description: string; severity: string; category?: string }) =>
     apiFetch('/ai/fix', { method: 'POST', body: JSON.stringify(finding) }),
   getAiSummary: (scanId: string) =>
     apiFetch('/ai/summary', { method: 'POST', body: JSON.stringify({ scanId }) }),
+
+  // Leaderboard
+  getLeaderboard: () => apiFetch('/leaderboard'),
+
+  // Admin
+  adminUpdateUserPlan: (userId: string, plan: string) =>
+    apiFetch(`/admin/users/${userId}/plan`, { method: 'PATCH', body: JSON.stringify({ plan }) }),
 }

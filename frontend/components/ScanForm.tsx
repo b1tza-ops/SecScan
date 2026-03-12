@@ -6,6 +6,17 @@ import { api } from '@/lib/api'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 
+const PRIVATE_IP_RE = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0|::1|\[::1\])/i
+const DOMAIN_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z]{2,})+$/i
+
+function validateDomain(input: string): string | null {
+  const clean = input.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').trim().toLowerCase()
+  if (!clean) return 'Please enter a domain'
+  if (PRIVATE_IP_RE.test(clean)) return 'Cannot scan private or internal addresses'
+  if (!DOMAIN_RE.test(clean)) return 'Please enter a valid domain (e.g., example.com)'
+  return null
+}
+
 export function ScanForm() {
   const [domain, setDomain] = useState('')
   const [consent, setConsent] = useState(false)
@@ -16,7 +27,8 @@ export function ScanForm() {
   async function handleScan(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (!domain.trim()) return setError('Please enter a domain')
+    const domainError = validateDomain(domain)
+    if (domainError) return setError(domainError)
     if (!consent) return setError('You must confirm you have permission to scan this domain')
 
     setLoading(true)

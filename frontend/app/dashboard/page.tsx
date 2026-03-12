@@ -76,8 +76,9 @@ export default function DashboardPage() {
           <span className="font-semibold text-white">SecurityScan</span>
         </Link>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-400">{user?.email}</span>
+          <span className="text-sm text-gray-400 hidden sm:block">{user?.email}</span>
           <span className="text-xs bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-1 rounded-full capitalize">{user?.plan}</span>
+          <Link href="/settings" className="text-sm text-gray-500 hover:text-white transition-colors">Settings</Link>
           <button onClick={() => api.logout().then(() => router.push('/'))} className="text-sm text-gray-500 hover:text-white transition-colors">Logout</button>
         </div>
       </nav>

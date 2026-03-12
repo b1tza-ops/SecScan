@@ -11,6 +11,15 @@ import { adminRouter } from './routes/admin.js';
 import { badgeRouter } from './routes/badge.js';
 import { pdfRouter } from './routes/pdf.js';
 import { aiRouter } from './routes/ai.js';
+import { leaderboardRouter } from './routes/leaderboard.js';
+
+// Fail fast on missing required env vars
+const REQUIRED_ENV = ['DATABASE_URL', 'REDIS_URL', 'JWT_SECRET'];
+const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+if (missing.length) {
+  console.error(`FATAL: Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1);
+}
 import { globalLimiter } from './middleware/rateLimit.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initDB } from './models/db.js';
@@ -39,6 +48,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/badge', badgeRouter);
 app.use('/api/pdf', pdfRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/leaderboard', leaderboardRouter);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 

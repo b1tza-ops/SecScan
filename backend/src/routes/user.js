@@ -77,6 +77,17 @@ userRouter.post('/domains/:domainId/webhook', async (req, res, next) => {
   }
 });
 
+userRouter.patch('/notifications', async (req, res, next) => {
+  try {
+    const { email_alerts } = req.body;
+    if (typeof email_alerts !== 'boolean') return res.status(400).json({ error: 'email_alerts must be a boolean' });
+    await pool.query('UPDATE users SET email_alerts=$1 WHERE id=$2', [email_alerts, req.user.id]);
+    res.json({ ok: true, email_alerts });
+  } catch (err) {
+    next(err);
+  }
+});
+
 userRouter.post('/regenerate-api-key', async (req, res, next) => {
   try {
     const { rows } = await pool.query(

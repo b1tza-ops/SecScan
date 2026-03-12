@@ -72,20 +72,42 @@ subscriptionRouter.post('/webhook', async (req, res) => {
     return res.status(400).send('Webhook signature verification failed');
   }
 
-  const session = event.data.object;
+  // Idempotency: skip already-processed events
+  try {
+    const { rowCount } = await pool.query(
+      'INSERT INTO stripe_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING',
+      [event.id]
+    );
+    if (rowCount === 0) return res.json({ received: true, duplicate: true });
+  } catch {
+    // If table doesn't exist yet, continue processing
+  }
+
+  const obj = event.data.object;
 
   if (event.type === 'checkout.session.completed') {
-    const { userId, plan } = session.metadata;
-    await pool.query('UPDATE users SET plan=$1, stripe_subscription_id=$2 WHERE id=$3', [plan, session.subscription, userId]);
-    await pool.query(
-      'INSERT INTO subscriptions (user_id, stripe_subscription_id, plan, status) VALUES ($1,$2,$3,$4) ON CONFLICT (stripe_subscription_id) DO UPDATE SET status=$4',
-      [userId, session.subscription, plan, 'active']
-    );
+    const { userId, plan } = obj.metadata || {};
+    if (userId && plan) {
+      await pool.query('UPDATE users SET plan=$1, stripe_subscription_id=$2 WHERE id=$3', [plan, obj.subscription, userId]);
+      await pool.query(
+        'INSERT INTO subscriptions (user_id, stripe_subscription_id, plan, status) VALUES ($1,$2,$3,$4) ON CONFLICT (stripe_subscription_id) DO UPDATE SET plan=$3, status=$4',
+        [userId, obj.subscription, plan, 'active']
+      );
+    }
+  }
+
+  if (event.type === 'customer.subscription.updated') {
+    const priceId = obj.items?.data?.[0]?.price?.id;
+    const newPlan = PLAN_FROM_PRICE[priceId];
+    if (newPlan) {
+      await pool.query("UPDATE users SET plan=$1 WHERE stripe_subscription_id=$2", [newPlan, obj.id]);
+      await pool.query("UPDATE subscriptions SET plan=$1, status=$2 WHERE stripe_subscription_id=$3", [newPlan, obj.status, obj.id]);
+    }
   }
 
   if (event.type === 'customer.subscription.deleted') {
-    await pool.query("UPDATE users SET plan='free' WHERE stripe_subscription_id=$1", [session.id]);
-    await pool.query("UPDATE subscriptions SET status='cancelled' WHERE stripe_subscription_id=$1", [session.id]);
+    await pool.query("UPDATE users SET plan='free', stripe_subscription_id=NULL WHERE stripe_subscription_id=$1", [obj.id]);
+    await pool.query("UPDATE subscriptions SET status='cancelled' WHERE stripe_subscription_id=$1", [obj.id]);
   }
 
   res.json({ received: true });

@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { pool } from '../models/db.js';
+import { globalLimiter } from '../middleware/rateLimit.js';
 
 export const leaderboardRouter = Router();
+leaderboardRouter.use(globalLimiter);
 
 // GET /api/leaderboard — top scored domains (public)
 leaderboardRouter.get('/', async (req, res, next) => {

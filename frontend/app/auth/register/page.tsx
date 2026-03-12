@@ -7,6 +7,23 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
+function getPasswordStrength(password: string): { level: number; label: string; color: string } {
+  if (!password) return { level: 0, label: '', color: '' }
+  if (password.length < 8) return { level: 1, label: 'Too short', color: 'bg-red-500' }
+  const checks = [
+    /[A-Z]/.test(password),
+    /[a-z]/.test(password),
+    /\d/.test(password),
+    /[^a-zA-Z0-9]/.test(password),
+    password.length >= 12,
+  ]
+  const score = checks.filter(Boolean).length
+  if (score <= 2) return { level: 1, label: 'Weak', color: 'bg-red-500' }
+  if (score === 3) return { level: 2, label: 'Fair', color: 'bg-yellow-500' }
+  if (score === 4) return { level: 3, label: 'Good', color: 'bg-blue-500' }
+  return { level: 4, label: 'Strong', color: 'bg-green-500' }
+}
+
 export default function RegisterPage() {
   const [form, setForm] = useState({ email: '', password: '', full_name: '' })
   const [loading, setLoading] = useState(false)
@@ -21,7 +38,7 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       await api.register(form)
-      toast.success('Account created!')
+      toast.success('Account created! Check your email to verify.')
       router.push('/dashboard')
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Registration failed')
@@ -29,6 +46,8 @@ export default function RegisterPage() {
       setLoading(false)
     }
   }
+
+  const strength = getPasswordStrength(form.password)
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-6">
@@ -43,29 +62,67 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-[#111] border border-[#222] rounded-2xl p-8 space-y-4">
-          {[
-            { label: 'Full Name', key: 'full_name', type: 'text', placeholder: 'Jane Doe' },
-            { label: 'Email', key: 'email', type: 'email', placeholder: 'you@example.com' },
-            { label: 'Password', key: 'password', type: 'password', placeholder: '8+ characters' },
-          ].map((field) => (
-            <div key={field.key}>
-              <label className="block text-sm text-gray-400 mb-2">{field.label}</label>
-              <input
-                type={field.type}
-                value={form[field.key as keyof typeof form]}
-                onChange={update(field.key)}
-                required
-                minLength={field.key === 'password' ? 8 : undefined}
-                className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#333] rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
-                placeholder={field.placeholder}
-              />
-            </div>
-          ))}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Full Name</label>
+            <input
+              type="text"
+              value={form.full_name}
+              onChange={update('full_name')}
+              required
+              className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#333] rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              placeholder="Jane Doe"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Email</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={update('email')}
+              required
+              className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#333] rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              placeholder="you@example.com"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Password</label>
+            <input
+              type="password"
+              value={form.password}
+              onChange={update('password')}
+              required
+              minLength={8}
+              className="w-full px-4 py-3 bg-[#0a0a0a] border border-[#333] rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              placeholder="8+ characters"
+            />
+            {form.password && (
+              <div className="mt-2">
+                <div className="flex gap-1 mb-1">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
+                        i <= strength.level ? strength.color : 'bg-[#333]'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className={`text-xs ${
+                  strength.level === 1 ? 'text-red-400' :
+                  strength.level === 2 ? 'text-yellow-400' :
+                  strength.level === 3 ? 'text-blue-400' : 'text-green-400'
+                }`}>
+                  {strength.label}
+                </p>
+              </div>
+            )}
+          </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
           >
+            {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
             {loading ? 'Creating account...' : 'Create Account'}
           </button>
         </form>
