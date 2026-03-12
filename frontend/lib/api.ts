@@ -20,12 +20,16 @@ export const api = {
   login: (body: object) => apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
   logout: () => apiFetch('/auth/logout', { method: 'POST' }),
   me: () => apiFetch('/auth/me'),
+  forgotPassword: (email: string) => apiFetch('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: (token: string, password: string) => apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
+  verifyEmail: (token: string) => apiFetch(`/auth/verify-email?token=${encodeURIComponent(token)}`),
 
   // Scans
   createScan: (domain: string, consent: boolean) =>
     apiFetch('/scan', { method: 'POST', body: JSON.stringify({ domain, consent: String(consent) }) }),
   getScan: (id: string) => apiFetch(`/scan/${id}`),
   getUserScans: () => apiFetch('/scan'),
+  rescan: (id: string) => apiFetch(`/scan/${id}/rescan`, { method: 'POST' }),
 
   // User
   getProfile: () => apiFetch('/user/profile'),
@@ -49,4 +53,10 @@ export const api = {
   // Webhooks
   setDomainWebhook: (domainId: string, webhookUrl: string | null) =>
     apiFetch(`/user/domains/${domainId}/webhook`, { method: 'POST', body: JSON.stringify({ webhook_url: webhookUrl }) }),
+
+  // AI
+  getAiFix: (finding: { title: string; description: string; severity: string; category?: string }) =>
+    apiFetch('/ai/fix', { method: 'POST', body: JSON.stringify(finding) }),
+  getAiSummary: (scanId: string) =>
+    apiFetch('/ai/summary', { method: 'POST', body: JSON.stringify({ scanId }) }),
 }

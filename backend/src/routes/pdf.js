@@ -42,6 +42,11 @@ pdfRouter.get('/:scanId', requireAuth, async (req, res, next) => {
     if (!scanRows.length) return res.status(404).json({ error: 'Scan not found' });
     const scan = scanRows[0];
 
+    // Only allow the scan owner to download the PDF
+    if (scan.user_id && scan.user_id !== req.user.id && !req.user.is_admin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     if (req.user.plan === 'free') {
       return res.status(403).json({ error: 'PDF export requires Pro or Agency plan. Upgrade at /dashboard.' });
     }

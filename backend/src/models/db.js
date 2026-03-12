@@ -91,6 +91,16 @@ export async function initDB() {
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS finding_fixes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        vulnerability_id UUID REFERENCES vulnerabilities(id) ON DELETE CASCADE,
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'fixed',
+        note TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(vulnerability_id, user_id)
+      );
+
       CREATE TABLE IF NOT EXISTS anon_scan_tracking (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         ip_address TEXT NOT NULL,
@@ -99,11 +109,22 @@ export async function initDB() {
         UNIQUE(ip_address, scan_date)
       );
 
+      CREATE TABLE IF NOT EXISTS ai_usage (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        usage_key TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_ai_usage_key ON ai_usage(usage_key, created_at);
+
       CREATE INDEX IF NOT EXISTS idx_scans_user_id ON scans(user_id);
       CREATE INDEX IF NOT EXISTS idx_scans_domain ON scans(domain);
+      CREATE INDEX IF NOT EXISTS idx_scans_status ON scans(status);
+      CREATE INDEX IF NOT EXISTS idx_scans_created_at ON scans(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_scans_user_domain ON scans(user_id, domain);
       CREATE INDEX IF NOT EXISTS idx_vulnerabilities_scan_id ON vulnerabilities(scan_id);
       CREATE INDEX IF NOT EXISTS idx_scan_results_scan_id ON scan_results(scan_id);
       CREATE INDEX IF NOT EXISTS idx_anon_scan_tracking ON anon_scan_tracking(ip_address, scan_date);
+      CREATE INDEX IF NOT EXISTS idx_domains_monitoring ON domains(user_id) WHERE monitoring_enabled = true;
     `);
     // Add new columns if they don't exist yet (idempotent migrations)
     await client.query(`ALTER TABLE scans ADD COLUMN IF NOT EXISTS ip_address TEXT;`);
@@ -111,6 +132,13 @@ export async function initDB() {
     await client.query(`ALTER TABLE domains ADD COLUMN IF NOT EXISTS webhook_url TEXT;`);
     await client.query(`ALTER TABLE domains ADD COLUMN IF NOT EXISTS last_scanned_at TIMESTAMPTZ;`);
     await client.query(`ALTER TABLE domains ADD COLUMN IF NOT EXISTS last_score INTEGER;`);
+    // Auth enhancements
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false;`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_token TEXT;`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_token_expires TIMESTAMPTZ;`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT;`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ;`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_alerts BOOLEAN DEFAULT true;`);
     console.log('Database schema initialized');
   } finally {
     client.release();

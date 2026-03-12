@@ -31,10 +31,21 @@ securityscan/
 │   │   ├── auth/register/     # Registration page
 │   │   ├── dashboard/         # Authenticated user dashboard
 │   │   └── scan/[id]/         # Scan result report page
+│   ├── app/
+│   │   ├── page.tsx                    # Landing page
+│   │   ├── auth/login/                 # Login page (with forgot-password link)
+│   │   ├── auth/register/              # Registration page
+│   │   ├── auth/forgot-password/       # Request password reset
+│   │   ├── auth/reset-password/        # Set new password via token
+│   │   ├── auth/verify-email/          # Email verification
+│   │   ├── dashboard/                  # Authenticated user dashboard
+│   │   └── scan/[id]/                  # Scan report (filter, AI summary, rescan)
 │   ├── components/
 │   │   ├── ScanForm.tsx       # Domain input + consent checkbox
 │   │   ├── ScoreGauge.tsx     # Animated SVG score circle
-│   │   └── FindingCard.tsx    # Collapsible vulnerability card
+│   │   ├── FindingCard.tsx    # Collapsible vulnerability card + AI Fix button
+│   │   ├── OWASPSummary.tsx   # OWASP category breakdown
+│   │   └── BadgeEmbed.tsx     # Security badge embed snippet
 │   └── lib/
 │       ├── api.ts             # Typed API client (all endpoints)
 │       └── utils.ts           # cn(), severityColor(), scoreColor()
@@ -46,10 +57,13 @@ securityscan/
 │       ├── models/db.js       # PostgreSQL pool + schema init (7 tables)
 │       ├── queue/scanQueue.js # BullMQ job enqueue + worker logic
 │       ├── routes/
-│       │   ├── auth.js        # register, login, logout, me
-│       │   ├── scan.js        # create scan, poll scan, list user scans
-│       │   ├── user.js        # profile, domains, api-key regeneration
+│       │   ├── auth.js        # register, login, logout, me, forgot/reset password, verify email
+│       │   ├── scan.js        # create scan, poll, rescan, history (auth), list
+│       │   ├── user.js        # profile, domains, webhook (https-only), api-key
 │       │   ├── subscription.js# Stripe checkout, portal, webhook
+│       │   ├── ai.js          # POST /fix, POST /summary (OpenAI GPT-4o-mini)
+│       │   ├── badge.js       # SVG badge with 1-hour cache
+│       │   ├── pdf.js         # PDF export (Pro+, ownership verified)
 │       │   └── admin.js       # stats, user list, scan list (admin only)
 │       └── middleware/
 │           ├── auth.js        # requireAuth, optionalAuth, requireAdmin
@@ -241,48 +255,112 @@ make ssl-init      # Initialize Let's Encrypt SSL
 
 - [x] Full Docker Compose setup (8 services, internal network)
 - [x] User auth — JWT in httpOnly cookies, bcrypt 12 rounds
-- [x] 9 passive security scanning modules (runs in parallel)
+- [x] Email verification on registration + password reset flow
+- [x] 12 passive security scanning modules (runs in parallel)
 - [x] BullMQ job queue with 3 retries + exponential backoff
+- [x] Worker graceful shutdown on SIGTERM/SIGINT
 - [x] PostgreSQL schema with indexes, auto-created on startup
 - [x] Stripe checkout + customer portal + webhook handler
 - [x] Free tier enforcement server-side (3 scans/month)
-- [x] Rate limiting — global, auth, scan endpoints
+- [x] Anonymous scan tracking (5/day per IP)
+- [x] Rate limiting — global, auth, scan, AI endpoints
 - [x] Nginx reverse proxy with rate limits + security headers
 - [x] Certbot SSL auto-renewal (every 12 hours)
 - [x] Dark-mode UI with Framer Motion animations
-- [x] Scan result polling (3-second intervals)
+- [x] Scan result polling with 5-minute timeout
+- [x] Severity filter tabs on findings (All/Critical/High/Medium/Low/Info)
+- [x] Re-scan button on completed/failed scans
+- [x] Failed scan state with retry button
+- [x] PDF export (pdfkit, Pro/Agency only) — with ownership check
+- [x] SVG security badge with 1-hour cache
+- [x] OWASP summary per scan
+- [x] Domain monitoring scheduler (BullMQ repeatable job)
+- [x] Monitoring email alerts (score change + criticals)
+- [x] Webhook notifications for Slack/Discord on scan complete
 - [x] Admin API endpoints (stats, users, scans)
-- [x] Domain monitoring config (stored in DB)
+- [x] **AI Fix Advisor** — per-finding AI remediation (OpenAI GPT-4o-mini)
+- [x] **AI Executive Summary** — plain-English scan summary for stakeholders
+- [x] Score history chart (recharts line chart per domain)
+- [x] Security badge embed (SVG + copy snippet)
+- [x] Domain scan history endpoint (authenticated)
+
+---
+
+## AI Features
+
+Powered by **OpenAI GPT-4o-mini**. Set `OPENAI_API_KEY` in `.env` to enable.
+
+### AI Fix Advisor
+Each finding card has an "AI Fix" button that returns:
+- Plain-English explanation of the vulnerability
+- 3–5 specific fix steps
+- Code/config example
+- Effort estimate (low/medium/high)
+- Reference links (OWASP, MDN, official docs)
+
+**Limits:** Free users get 3 AI fixes/day. Pro/Agency users get unlimited.
+
+### AI Executive Summary
+On any completed scan report, click "Generate AI Executive Summary" to get:
+- Overall security posture assessment
+- Top 3 business risks
+- Quick wins (easiest fixes)
+- Priority level (critical/high/medium/low)
+
+---
+
+## API Endpoints
+
+```
+POST   /api/auth/register
+POST   /api/auth/login
+POST   /api/auth/logout
+GET    /api/auth/me
+GET    /api/auth/verify-email?token=
+POST   /api/auth/forgot-password
+POST   /api/auth/reset-password
+
+POST   /api/scan                  # Requires domain + consent:"true"
+GET    /api/scan/:id              # Poll scan status + results
+POST   /api/scan/:id/rescan       # Re-run scan (auth required)
+GET    /api/scan/                 # User's scan history (auth required)
+GET    /api/scan/history/:domain  # Domain score history (auth required)
+
+GET    /api/user/profile
+GET    /api/user/scans
+GET    /api/user/domains
+POST   /api/user/domains/:id/monitor
+POST   /api/user/domains/:id/webhook
+POST   /api/user/regenerate-api-key
+
+POST   /api/subscription/checkout
+POST   /api/subscription/portal
+POST   /api/subscription/webhook  # Stripe webhook (raw body)
+
+GET    /api/badge/:domain         # SVG security badge (public)
+GET    /api/pdf/:scanId           # PDF report download (Pro/Agency, owner only)
+
+POST   /api/ai/fix                # AI fix advice for a finding
+POST   /api/ai/summary            # AI executive summary for a scan (auth required)
+
+GET    /api/admin/stats           # Admin only
+GET    /api/admin/users
+GET    /api/admin/scans
+GET    /api/health
+```
 
 ---
 
 ## Known Gaps / TODO
 
-### PDF Export
-- The button appears on the scan result page for Pro/Agency users but currently just links to `/auth/register`
-- **Needs:** A backend endpoint `GET /api/scan/:id/pdf` that generates a PDF (suggest Puppeteer or pdfkit)
-- Frontend should call this endpoint and trigger a file download
-
-### Scheduled Monitoring
-- The `domains` table has `monitoring_enabled` and `monitoring_interval` columns
-- User can toggle monitoring via `POST /api/user/domains/:id/monitor`
-- **Needs:** A BullMQ repeatable job or cron service that rescans enabled domains on their interval
-- Could use BullMQ's built-in `repeat` option in `scanQueue.js`
-
-### Email Notifications
-- `nodemailer` is in `package.json` dependencies but never used
-- **Needs:** Email on scan complete, monitoring alerts, account actions
-- `SMTP_*` env vars should be added to `.env.example`
-
 ### Admin Frontend
 - Admin API routes exist and work (`/api/admin/*`)
 - **Needs:** A Next.js page at `app/admin/page.tsx` with stats cards, user table, scan table
-- Should be gated by `user.is_admin` check on the frontend (already enforced on backend)
 
 ### API Key Authentication
 - `api_key` field is generated for every user on signup
 - `POST /api/user/regenerate-api-key` endpoint exists
-- **Needs:** A middleware variant that accepts `Authorization: Bearer <api_key>` and authenticates via API key lookup (for Agency plan API access)
+- **Needs:** Middleware to accept `Authorization: Bearer <api_key>` for Agency plan API access
 
 ### White-label PDF
 - Mentioned in Agency tier pricing
@@ -291,7 +369,6 @@ make ssl-init      # Initialize Let's Encrypt SSL
 ### Testing
 - No test files exist anywhere in the project
 - Recommend: Jest for backend unit/integration tests, Playwright for frontend E2E
-- Especially important to test: scan limit enforcement, Stripe webhook, auth flows
 
 ---
 

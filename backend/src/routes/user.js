@@ -45,9 +45,10 @@ userRouter.get('/domains', async (req, res, next) => {
 userRouter.post('/domains/:domainId/monitor', async (req, res, next) => {
   try {
     const { enabled, interval } = req.body;
+    const safeInterval = ['daily', 'weekly'].includes(interval) ? interval : 'weekly';
     const { rows } = await pool.query(
       'UPDATE domains SET monitoring_enabled=$1, monitoring_interval=$2 WHERE id=$3 AND user_id=$4 RETURNING *',
-      [enabled, interval || 'weekly', req.params.domainId, req.user.id]
+      [enabled, safeInterval, req.params.domainId, req.user.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Domain not found' });
     res.json({ domain: rows[0] });
@@ -62,6 +63,9 @@ userRouter.post('/domains/:domainId/webhook', async (req, res, next) => {
       return res.status(403).json({ error: 'Webhook alerts require Pro or Agency plan.' });
     }
     const { webhook_url } = req.body;
+    if (webhook_url && !/^https:\/\/.+/.test(webhook_url)) {
+      return res.status(400).json({ error: 'Webhook URL must start with https://' });
+    }
     const { rows } = await pool.query(
       'UPDATE domains SET webhook_url=$1 WHERE id=$2 AND user_id=$3 RETURNING *',
       [webhook_url || null, req.params.domainId, req.user.id]

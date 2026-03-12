@@ -62,8 +62,8 @@ badgeRouter.get('/:domain', async (req, res, next) => {
 
     res.set({
       'Content-Type': 'image/svg+xml',
-      'Cache-Control': 'no-cache, max-age=0',
-      'ETag': `${domain}-${score}`,
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      'ETag': `"${domain}-${score}"`,
     });
     res.send(svg);
   } catch (err) {

@@ -1,6 +1,7 @@
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { pool } from '../models/db.js';
+import { sendMonitoringAlert } from '../services/email.js';
 
 const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
   maxRetriesPerRequest: null,
@@ -10,7 +11,7 @@ export const scanQueue = new Queue('scans', { connection });
 
 export function startScanWorker() {
   const worker = new Worker('scans', async (job) => {
-    const { scanId, domain } = job.data;
+    const { scanId, domain, isMonitoring, userEmail, prevScore } = job.data;
 
     await pool.query("UPDATE scans SET status='running', started_at=NOW() WHERE id=$1", [scanId]);
 
@@ -52,6 +53,14 @@ export function startScanWorker() {
         'UPDATE domains SET last_scanned_at=NOW(), last_score=$1 WHERE domain=$2',
         [result.security_score, domain]
       ).catch(() => {});
+
+      // Send monitoring email alert
+      if (isMonitoring && userEmail) {
+        sendMonitoringAlert(
+          userEmail, domain, result.security_score,
+          prevScore, result.critical_count, scanId
+        ).catch(() => {});
+      }
 
       // Send webhook notification for monitored domains
       try {
